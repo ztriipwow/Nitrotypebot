@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>User Input Form</title>
+</head>
+<body>
+  <h2>User Input Form</h2>
+
+  <input type="text" id="username" placeholder="Username"><br><br>
+  <input type="password" id="password" placeholder="Password"><br><br>
+  <input type="number" id="wpm" placeholder="WPM"><br><br>
+  <input type="number" id="accuracy" placeholder="Accuracy"><br><br>
+  <input type="number" id="nitros" placeholder="Nitros"><br><br>
+  <input type="number" id="races" placeholder="Amount of Races"><br><br>
+  <button onclick="submitInput()">Submit</button>
+
+  <h3>All Inputs:</h3>
+  <pre id="output"></pre>
+
+  <script>
+    async function submitInput() {
+      const data = {
+        username: document.getElementById("username").value,
+        password: document.getElementById("password").value,
+        wpm: document.getElementById("wpm").value,
+        accuracy: document.getElementById("accuracy").value,
+        nitros: document.getElementById("nitros").value,
+        races: document.getElementById("races").value
+      };
+
+      await fetch("/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      loadInputs();
+    }
+
+    async function loadInputs() {
+      const res = await fetch("/inputs");
+      const inputs = await res.json();
+      document.getElementById("output").textContent =
+        JSON.stringify(inputs, null, 2);
+    }
+
+    // Load existing data when page opens
+    loadInputs();
+  </script>
+</body>
+</html>
