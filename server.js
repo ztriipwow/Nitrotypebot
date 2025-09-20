@@ -10,19 +10,18 @@ const app = express();
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-  secret: 'your-very-secret-key', // <-- CHANGE to a strong secret
+  secret: 'your-very-secret-key', // <-- CHANGE this
   resave: false,
   saveUninitialized: true
 }));
 
-// Serve static files (optional)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // File to store inputs
 const INPUT_FILE = path.join(__dirname, 'inputs.json');
-
-// Ensure inputs.json exists
 if (!fs.existsSync(INPUT_FILE)) fs.writeFileSync(INPUT_FILE, JSON.stringify([]));
+
+let clients = []; // connected SSE clients
 
 // ---- PUBLIC INPUT FORM ----
 app.get('/', (req, res) => {
@@ -37,15 +36,16 @@ app.get('/', (req, res) => {
 });
 
 app.post('/submit', (req, res) => {
-  const input = req.body.userInput; // ✅ Matches input field name
+  const input = req.body.userInput;
   if (!input) return res.send('No input received.');
 
-  // Read current inputs
   const currentInputs = JSON.parse(fs.readFileSync(INPUT_FILE));
-  // Add new input with timestamp
   currentInputs.push({ input, date: new Date().toISOString() });
-  // Save back to file
   fs.writeFileSync(INPUT_FILE, JSON.stringify(currentInputs, null, 2));
+
+  // Notify all connected SSE clients
+  const data = JSON.stringify({ input, date: new Date().toISOString() });
+  clients.forEach(client => client.res.write(`data: ${data}\n\n`));
 
   res.send('Input submitted successfully! <a href="/">Go back</a>');
 });
@@ -62,7 +62,7 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const PASSWORD = 'mypassword123'; // <-- Change this to your own password
+  const PASSWORD = 'mypassword123'; // <-- Change this
   if (req.body.password === PASSWORD) {
     req.session.loggedIn = true;
     res.redirect('/private');
@@ -76,17 +76,48 @@ app.get('/private', (req, res) => {
   if (!req.session.loggedIn) return res.redirect('/login');
 
   const inputs = JSON.parse(fs.readFileSync(INPUT_FILE));
-  let inputHtml = '<ul>';
+  let inputHtml = '<ul id="input-list">';
   inputs.forEach(item => {
     inputHtml += `<li>${item.date}: ${item.input}</li>`;
   });
   inputHtml += '</ul>';
 
   res.send(`
-    <h2>Private Inputs</h2>
+    <h2>Private Inputs (Live Updates)</h2>
     ${inputHtml}
     <p><a href="/logout">Logout</a></p>
+
+    <script>
+      const evtSource = new EventSource('/stream');
+      const list = document.getElementById('input-list');
+      evtSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        const li = document.createElement('li');
+        li.textContent = data.date + ': ' + data.input;
+        list.appendChild(li);
+      }
+    </script>
   `);
+});
+
+// ---- SSE STREAM ----
+app.get('/stream', (req, res) => {
+  if (!req.session.loggedIn) return res.status(403).end();
+
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive'
+  });
+  res.flushHeaders();
+
+  // Add client
+  clients.push({ res });
+
+  // Remove client when disconnected
+  req.on('close', () => {
+    clients = clients.filter(c => c.res !== res);
+  });
 });
 
 // ---- LOGOUT ----
@@ -95,5 +126,4 @@ app.get('/logout', (req, res) => {
   res.redirect('/login');
 });
 
-// Start server
 app.listen(3000, () => console.log('Server running on port 3000'));
