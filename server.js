@@ -10,12 +10,12 @@ const app = express();
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-  secret: 'your-very-secret-key', // CHANGE this to a strong secret
+  secret: 'your-very-secret-key', // <-- CHANGE to a strong secret
   resave: false,
   saveUninitialized: true
 }));
 
-// Serve static files (optional, for CSS/JS)
+// Serve static files (optional)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // File to store inputs
@@ -29,7 +29,7 @@ app.get('/', (req, res) => {
   res.send(`
     <h2>Public Input Form</h2>
     <form method="POST" action="/submit">
-      <input name="userInput" placeholder="Type something" required/>
+      <input name="userInput" placeholder="Type something" required />
       <button type="submit">Submit</button>
     </form>
     <p>Anyone can submit here, but only the admin sees the results.</p>
@@ -37,10 +37,16 @@ app.get('/', (req, res) => {
 });
 
 app.post('/submit', (req, res) => {
-  const input = req.body.userInput; // ✅ Make sure this matches the input name
+  const input = req.body.userInput; // ✅ Matches input field name
+  if (!input) return res.send('No input received.');
+
+  // Read current inputs
   const currentInputs = JSON.parse(fs.readFileSync(INPUT_FILE));
+  // Add new input with timestamp
   currentInputs.push({ input, date: new Date().toISOString() });
+  // Save back to file
   fs.writeFileSync(INPUT_FILE, JSON.stringify(currentInputs, null, 2));
+
   res.send('Input submitted successfully! <a href="/">Go back</a>');
 });
 
@@ -49,7 +55,7 @@ app.get('/login', (req, res) => {
   res.send(`
     <h2>Admin Login</h2>
     <form method="POST">
-      <input type="password" name="password" placeholder="Enter password" required/>
+      <input type="password" name="password" placeholder="Enter password" required />
       <button type="submit">Login</button>
     </form>
   `);
