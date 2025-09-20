@@ -1,3 +1,4 @@
+// server.js
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
@@ -9,12 +10,12 @@ const app = express();
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-  secret: 'your-very-secret-key', // Change this
+  secret: 'your-very-secret-key', // CHANGE this to a strong secret
   resave: false,
   saveUninitialized: true
 }));
 
-// Serve static files (public site)
+// Serve static files (optional, for CSS/JS)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // File to store inputs
@@ -36,7 +37,7 @@ app.get('/', (req, res) => {
 });
 
 app.post('/submit', (req, res) => {
-  const input = req.body.userInput;
+  const input = req.body.userInput; // ✅ Make sure this matches the input name
   const currentInputs = JSON.parse(fs.readFileSync(INPUT_FILE));
   currentInputs.push({ input, date: new Date().toISOString() });
   fs.writeFileSync(INPUT_FILE, JSON.stringify(currentInputs, null, 2));
@@ -55,7 +56,7 @@ app.get('/login', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const PASSWORD = 'mypassword123'; // Change this
+  const PASSWORD = 'mypassword123'; // <-- Change this to your own password
   if (req.body.password === PASSWORD) {
     req.session.loggedIn = true;
     res.redirect('/private');
